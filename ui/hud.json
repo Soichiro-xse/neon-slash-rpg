@@ -7,47 +7,75 @@
         "sourceTag": "span",
         "type": "custom",
         "children": [
-          "WAVE 1"
-        ],
-        "properties": {
-          "id": "wave",
-          "class": "wave-text"
-        },
-        "dataUid": "uid-2"
-      },
-      {
-        "sourceTag": "span",
-        "type": "custom",
-        "children": [
           "0"
         ],
         "properties": {
           "id": "score",
           "class": "score-text"
         },
+        "dataUid": "uid-2"
+      },
+      {
+        "type": "container",
+        "sourceTag": "div",
+        "children": [
+          {
+            "sourceTag": "span",
+            "type": "custom",
+            "children": [],
+            "properties": {
+              "id": "combo",
+              "class": "combo-text"
+            },
+            "dataUid": "uid-4"
+          },
+          {
+            "sourceTag": "span",
+            "type": "custom",
+            "children": [],
+            "properties": {
+              "id": "multiplier",
+              "class": "multi-text"
+            },
+            "dataUid": "uid-5"
+          }
+        ],
+        "properties": {
+          "class": "combo-row"
+        },
         "dataUid": "uid-3"
+      },
+      {
+        "sourceTag": "span",
+        "type": "custom",
+        "children": [
+          "PULL TRIGGER"
+        ],
+        "properties": {
+          "id": "status",
+          "class": "status-text"
+        },
+        "dataUid": "uid-6"
       },
       {
         "sourceTag": "span",
         "type": "custom",
         "children": [],
         "properties": {
-          "id": "combo",
-          "class": "combo-text"
+          "id": "accuracy",
+          "class": "accuracy-text"
         },
-        "dataUid": "uid-4"
+        "dataUid": "uid-7"
       },
       {
         "sourceTag": "span",
         "type": "custom",
-        "children": [
-          "PULL TRIGGER TO START"
-        ],
+        "children": [],
         "properties": {
-          "id": "status",
-          "class": "status-text"
+          "id": "progress",
+          "class": "progress-text"
         },
-        "dataUid": "uid-5"
+        "dataUid": "uid-8"
       }
     ],
     "properties": {
@@ -62,46 +90,71 @@
         "flexDirection": "column",
         "alignItems": "center",
         "justifyContent": "flex-start",
-        "padding": "2",
-        "width": "50",
-        "backgroundColor": "#0d001a",
-        "borderColor": "#00ffff",
-        "borderWidth": "0.15",
+        "padding": "1.5",
+        "width": "45",
+        "backgroundColor": "#0a001580",
+        "borderColor": "#ffffff15",
+        "borderWidth": "0.1",
         "borderRadius": 2
-      }
-    },
-    "wave-text": {
-      "content": {
-        "fontSize": "3",
-        "fontWeight": "bold",
-        "color": "#00ffff",
-        "textAlign": "center"
       }
     },
     "score-text": {
       "content": {
-        "fontSize": "6",
+        "fontSize": "7",
         "fontWeight": "bold",
         "color": "#ffffff",
-        "textAlign": "center",
-        "marginTop": "0.5"
+        "textAlign": "center"
+      }
+    },
+    "combo-row": {
+      "content": {
+        "display": "flex",
+        "flexDirection": "row",
+        "alignItems": "center",
+        "justifyContent": "center",
+        "marginTop": "0.3"
       }
     },
     "combo-text": {
       "content": {
         "fontSize": "4",
         "fontWeight": "bold",
-        "color": "#ff00ff",
+        "color": "#ffdd00",
+        "textAlign": "center"
+      }
+    },
+    "multi-text": {
+      "content": {
+        "fontSize": "4",
+        "fontWeight": "bold",
+        "color": "#ff4488",
         "textAlign": "center",
-        "marginTop": "0.3"
+        "marginLeft": "1"
       }
     },
     "status-text": {
       "content": {
-        "fontSize": "2.5",
-        "color": "#ffff00",
+        "fontSize": "5",
+        "fontWeight": "bold",
+        "color": "#00ffff",
         "textAlign": "center",
-        "marginTop": "1.5"
+        "marginTop": "1"
+      }
+    },
+    "accuracy-text": {
+      "content": {
+        "fontSize": "2",
+        "color": "#aaaacc",
+        "textAlign": "center",
+        "marginTop": "0.5"
+      }
+    },
+    "progress-text": {
+      "content": {
+        "fontSize": "1.8",
+        "color": "#666688",
+        "textAlign": "center",
+        "marginTop": "0.5"
       }
     }
   },
@@ -116,24 +169,24 @@
         "column": 11
       }
     },
-    "wave-text": {
-      "start": {
-        "line": 14,
-        "column": 2
-      },
-      "end": {
-        "line": 14,
-        "column": 12
-      }
-    },
     "score-text": {
       "start": {
+        "line": 14,
+        "column": 2
+      },
+      "end": {
+        "line": 14,
+        "column": 13
+      }
+    },
+    "combo-row": {
+      "start": {
         "line": 21,
         "column": 2
       },
       "end": {
         "line": 21,
-        "column": 13
+        "column": 12
       }
     },
     "combo-text": {
@@ -146,64 +199,124 @@
         "column": 13
       }
     },
-    "status-text": {
+    "multi-text": {
       "start": {
-        "line": 37,
+        "line": 36,
         "column": 2
       },
       "end": {
-        "line": 37,
+        "line": 36,
+        "column": 13
+      }
+    },
+    "status-text": {
+      "start": {
+        "line": 44,
+        "column": 2
+      },
+      "end": {
+        "line": 44,
         "column": 14
+      }
+    },
+    "accuracy-text": {
+      "start": {
+        "line": 52,
+        "column": 2
+      },
+      "end": {
+        "line": 52,
+        "column": 16
+      }
+    },
+    "progress-text": {
+      "start": {
+        "line": 59,
+        "column": 2
+      },
+      "end": {
+        "line": 59,
+        "column": 16
       }
     },
     "uid-1": {
       "start": {
-        "line": 44,
+        "line": 66,
         "column": 0
       },
       "end": {
-        "line": 49,
+        "line": 75,
         "column": 6
       }
     },
     "uid-2": {
       "start": {
-        "line": 45,
+        "line": 67,
         "column": 2
       },
       "end": {
-        "line": 45,
-        "column": 49
+        "line": 67,
+        "column": 46
       }
     },
     "uid-3": {
       "start": {
-        "line": 46,
+        "line": 68,
         "column": 2
       },
       "end": {
-        "line": 46,
-        "column": 46
+        "line": 71,
+        "column": 8
       }
     },
     "uid-4": {
       "start": {
-        "line": 47,
-        "column": 2
+        "line": 69,
+        "column": 4
       },
       "end": {
-        "line": 47,
-        "column": 45
+        "line": 69,
+        "column": 47
       }
     },
     "uid-5": {
       "start": {
-        "line": 48,
+        "line": 70,
+        "column": 4
+      },
+      "end": {
+        "line": 70,
+        "column": 52
+      }
+    },
+    "uid-6": {
+      "start": {
+        "line": 72,
         "column": 2
       },
       "end": {
-        "line": 48,
-        "column": 68
+        "line": 72,
+        "column": 59
+      }
+    },
+    "uid-7": {
+      "start": {
+        "line": 73,
+        "column": 2
+      },
+      "end": {
+        "line": 73,
+        "column": 51
+      }
+    },
+    "uid-8": {
+      "start": {
+        "line": 74,
+        "column": 2
+      },
+      "end": {
+        "line": 74,
+        "column": 51
       }
     }
   }
