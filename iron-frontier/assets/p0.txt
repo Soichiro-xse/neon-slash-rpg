@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#070b12">
+<title>NEON SIEGE</title>
+<style>
+:root{
+--bg:#070b12;--panel:#101724;--line:#26374f;--text:#eef7ff;
+--muted:#91a5bb;--cyan:#68e8ff;--pink:#ff6f91;--gold:#ffd56a;--green:#73f0a9;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Noto Sans JP",system-ui,sans-serif}
+button{font:inherit;color:inherit;border:0;appearance:none;-webkit-appearance:none;touch-action:manipulation}
+#game{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none;background:#070b12}
+#hud{position:fixed;inset:0;pointer-events:none;padding:calc(10px + env(safe-area-inset-top)) 10px calc(10px + env(safe-area-inset-bottom))}
+.top{display:flex;justify-content:space-between;gap:8px;align-items:flex-start}
+.brand{font-weight:900;letter-spacing:.11em;text-shadow:0 2px 10px #000}
+.brand small{display:block;font-size:9px;color:var(--cyan);letter-spacing:.2em}
+.badges{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.badge{padding:5px 8px;border:1px solid #31465e;background:#0b121dcc;border-radius:999px;font-size:11px;backdrop-filter:blur(8px)}
+.bars{position:absolute;left:10px;top:calc(58px + env(safe-area-inset-top));width:min(300px,66vw);display:grid;gap:5px}
+.bar{height:12px;border:1px solid #34485e;background:#151e2b;border-radius:999px;overflow:hidden}
+.fill{height:100%;transition:width .12s}
+.hp{background:linear-gradient(90deg,#ff5576,#ff8a69)}
+.xp{background:linear-gradient(90deg,#3cbfff,#83efff)}
+.boss{background:linear-gradient(90deg,#a65cff,#ff5f9a)}
+.wave{font-size:12px;text-shadow:0 2px 6px #000}
+#bossWrap{display:none}
+#bossWrap.show{display:block}
+#toast{position:absolute;left:50%;top:19%;transform:translate(-50%,-20px);opacity:0;transition:.22s;padding:9px 13px;border:1px solid var(--cyan);border-radius:10px;background:#07111ee8;font-weight:800;white-space:nowrap}
+#toast.show{opacity:1;transform:translate(-50%,0)}
+.controls{position:absolute;left:0;right:0;bottom:calc(14px + env(safe-area-inset-bottom));display:flex;justify-content:space-between;align-items:flex-end;padding:0 14px}
+.stick{width:120px;height:120px;border-radius:50%;border:1px solid #3d526a;background:#0d17258a;position:relative;pointer-events:auto;touch-action:none;box-shadow:inset 0 0 30px #0008}
+.knob{width:52px;height:52px;border-radius:50%;position:absolute;left:34px;top:34px;border:1px solid var(--cyan);background:#4ccfe84a;box-shadow:0 0 22px #4ccfe855}
+.actions{display:grid;grid-template-columns:72px 72px;gap:10px;align-items:end;pointer-events:auto}
+.action{width:72px;height:72px;border-radius:50%;border:1px solid #4c5f78;background:#101b2ad9;font-weight:900;box-shadow:0 7px 18px #0008}
+.action:active{transform:scale(.95)}
+#dash{border-color:#8b70ff;background:#2a2154d9}
+#nova{border-color:#ff7d99;background:#4d1f2cd9}
+#pause{position:absolute;right:10px;top:calc(48px + env(safe-area-inset-top));pointer-events:auto;width:38px;height:38px;border:1px solid #364a61;border-radius:9px;background:#0c1521dd}
+.overlay{position:fixed;inset:0;display:none;align-items:center;justify-content:center;padding:18px;background:radial-gradient(circle at 50% 30%,#13223ddd,#04070cee 68%);z-index:10}
+.overlay.show{display:flex}
+.panel{width:min(900px,100%);max-height:90vh;overflow:auto;border:1px solid #334a67;background:linear-gradient(180deg,#111c2b,#0a111b);border-radius:20px;padding:18px;box-shadow:0 35px 90px #000}
+.hero{text-align:center;padding:16px 4px}
+.hero h1{font-size:clamp(34px,9vw,72px);line-height:.95;margin:0;letter-spacing:.08em;text-shadow:0 0 25px #43dcff55}
+.hero p{color:var(--muted);max-width:600px;margin:15px auto;line-height:1.7}
+.primary,.secondary{width:100%;border-radius:12px;padding:13px 14px;font-weight:900;cursor:pointer}
+.primary{background:linear-gradient(180deg,#1c5c73,#123c4d);border:1px solid #55cfe6}
+.secondary{background:#131e2d;border:1px solid #33485f}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.card{min-height:170px;border:1px solid #38516b;background:linear-gradient(180deg,#17283a,#0f1926);border-radius:14px;padding:12px;cursor:pointer}
+.card:active{transform:translateY(2px)}
+.card h3{margin:8px 0 6px;font-size:15px}.card p{margin:0;color:var(--muted);font-size:12px;line-height:1.5}
+.tag{display:inline-block;font-size:9px;border:1px solid #46627c;border-radius:999px;padding:2px 6px;color:var(--cyan)}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:16px 0}
+.stat{padding:10px;border:1px solid #2c4058;background:#0d1622;border-radius:12px;text-align:center}
+.stat b{font-size:19px}.stat span{display:block;font-size:10px;color:var(--muted)}
+.help{font-size:11px;color:var(--muted);line-height:1.7;text-align:left;border-top:1px solid #25364b;padding-top:12px;margin-top:14px}
+@media(max-width:720px){
+.grid{grid-template-columns:1fr}
+.card{min-height:120px}
+.stats{grid-template-columns:repeat(2,1fr)}
+.controls{padding:0 10px}
+.stick{width:112px;height:112px}.knob{left:30px;top:30px}
+.actions{grid-template-columns:64px 64px}.action{width:64px;height:64px;font-size:12px}
+}
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<div id="hud">
+<div class="top">
+<div class="brand">NEON SIEGE<small>MOBILE ROGUELITE</small></div>
+<div class="badges">
+<div class="badge">WAVE <b id="waveText">1</b></div>
+<div class="badge">KILL <b id="killText">0</b></div>
+<div class="badge">CORE <b id="coreText">0</b></div>
+</div>
+</div>
+<div class="bars">
+<div class="wave">HP <span id="hpText"></span></div>
+<div class="bar"><div id="hpFill" class="fill hp"></div></div>
+<div class="bar"><div id="xpFill" class="fill xp"></div></div>
+<div id="bossWrap">
+<div class="wave" id="bossName"></div>
+<div class="bar"><div id="bossFill" class="fill boss"></div></div>
+</div>
+</div>
+<div id="toast"></div>
+<button id="pause">Ⅱ</button>
+<div class="controls">
+<div id="moveStick" class="stick"><div id="moveKnob" class="knob"></div></div>
+<div class="actions">
+<button id="dash" class="action">DASH</button>
+<button id="nova" class="action">NOVA</button>
+</div>
+</div>
+</div>
+<div id="startOverlay" class="overlay show">
+<div class="panel">
+<div class="hero">
+<h1>NEON<br>SIEGE</h1>
+<p>左スティックで移動。照準と射撃は自動です。敵弾を避け、武装を重ね、5ウェーブごとのボスを倒してください。</p>
+<div class="stats">
+<div class="stat"><b id="bestWave">0</b><span>最高ウェーブ</span></div>
+<div class="stat"><b id="totalKills">0</b><span>累計撃破</span></div>
+<div class="stat"><b id="metaCore">0</b><span>保有コア</span></div>
+<div class="stat"><b id="runs">0</b><span>出撃回数</span></div>
+</div>
+<button id="startBtn" class="primary">出撃する</button>
+<div class="help">
+・敵を倒すと経験値を獲得し、3択で強化できます。<br>
+・DASHは無敵移動、NOVAは周囲の敵と弾を消去します
