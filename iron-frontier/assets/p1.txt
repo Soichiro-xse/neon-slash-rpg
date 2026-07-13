@@ -1,0 +1,172 @@
+。<br>
+・ボス撃破と死亡時にコアを獲得し、次回出撃時に基礎性能へ反映されます。<br>
+・iPhone Safari / Android Chrome / PCに対応。
+</div>
+</div>
+</div>
+</div>
+<div id="upgradeOverlay" class="overlay">
+<div class="panel">
+<h2 style="margin-top:0">強化を選択</h2>
+<div id="upgradeGrid" class="grid"></div>
+</div>
+</div>
+<div id="gameOverOverlay" class="overlay">
+<div class="panel">
+<div class="hero">
+<h2>作戦終了</h2>
+<p id="resultText"></p>
+<button id="retryBtn" class="primary">再出撃</button>
+<button id="titleBtn" class="secondary" style="margin-top:9px">タイトルへ戻る</button>
+</div>
+</div>
+</div>
+<script>
+(function(){
+"use strict";
+var canvas=document.getElementById("game"),ctx=canvas.getContext("2d");
+var W=0,H=0,DPR=1,last=0,raf=0;
+var started=false,paused=false,choosing=false,gameOver=false;
+var storageOK=true,memSave=null;
+var SAVE_KEY="neon_siege_v4";
+function q(id){return document.getElementById(id)}
+function clamp(v,a,b){return Math.max(a,Math.min(b,v))}
+function rand(a,b){return a+Math.random()*(b-a)}
+function irand(a,b){return Math.floor(rand(a,b+1))}
+function dist(a,b){var x=a.x-b.x,y=a.y-b.y;return Math.sqrt(x*x+y*y)}
+function choice(a){return a[Math.floor(Math.random()*a.length)]}
+function safeLoad(){
+try{
+var s=localStorage.getItem(SAVE_KEY);
+return s?JSON.parse(s):null;
+}catch(e){storageOK=false;return memSave}
+}
+function safeSave(v){
+memSave=v;
+try{localStorage.setItem(SAVE_KEY,JSON.stringify(v));storageOK=true}catch(e){storageOK=false}
+}
+var meta=safeLoad()||{bestWave:0,totalKills:0,cores:0,runs:0,metaPower:0,metaHull:0};
+meta.bestWave=meta.bestWave||0;meta.totalKills=meta.totalKills||0;meta.cores=meta.cores||0;meta.runs=meta.runs||0;
+meta.metaPower=Math.floor(meta.cores/10);
+meta.metaHull=Math.floor(meta.cores/15);
+var G={};
+var input={mx:0,my:0,moveX:0,moveY:0,keys:{},dash:false,nova:false};
+var particles=[],bullets=[],enemyBullets=[],enemies=[],gems=[],texts=[];
+var upgrades=[
+{id:"damage",name:"高出力弾",tag:"攻撃",desc:"弾丸ダメージ +30%",apply:function(){G.p.damage*=1.3}},
+{id:"rapid",name:"過給砲身",tag:"攻撃",desc:"連射速度 +22%",apply:function(){G.p.fireRate*=.78}},
+{id:"multi",name:"分岐砲門",tag:"攻撃",desc:"同時発射数 +1",apply:function(){G.p.multishot++}},
+{id:"pierce",name:"徹甲処理",tag:"攻撃",desc:"貫通数 +1",apply:function(){G.p.pierce++}},
+{id:"crit",name:"演算照準",tag:"攻撃",desc:"会心率 +10%",apply:function(){G.p.crit+=.1}},
+{id:"speed",name:"偏向スラスター",tag:"機動",desc:"移動速度 +14%",apply:function(){G.p.speed*=1.14}},
+{id:"hull",name:"複合装甲",tag:"防御",desc:"最大HP +28、同量回復",apply:function(){G.p.maxHp+=28;G.p.hp+=28}},
+{id:"regen",name:"自己修復",tag:"防御",desc:"毎秒HPを0.8回復",apply:function(){G.p.regen+=.8}},
+{id:"magnet",name:"回収磁場",tag:"補助",desc:"経験値の吸引範囲 +35%",apply:function(){G.p.magnet*=1.35}},
+{id:"drone",name:"攻撃ドローン",tag:"随伴",desc:"周回し自動射撃するドローン追加",apply:function(){G.p.drones++}},
+{id:"orb",name:"電磁オーブ",tag:"随伴",desc:"接触ダメージを与えるオーブ追加",apply:function(){G.p.orbs++}},
+{id:"nova",name:"炉心拡張",tag:"特殊",desc:"NOVAの再使用時間 -18%",apply:function(){G.p.novaMax*=.82}},
+{id:"dash",name:"位相加速",tag:"特殊",desc:"DASHの再使用時間 -18%",apply:function(){G.p.dashMax*=.82}},
+{id:"blast",name:"爆裂弾頭",tag:"特殊",desc:"撃破時に小爆発",apply:function(){G.p.blast+=1}},
+{id:"vamp",name:"回収ナノ群",tag:"回復",desc:"撃破時4%でHPを2回復",apply:function(){G.p.vamp+=.04}},
+{id:"slow",name:"低温弾薬",tag:"状態",desc:"命中時25%で敵を鈍化",apply:function(){G.p.slow+=.25}},
+{id:"shield",name:"反応障壁",tag:"防御",desc:"8秒ごとに1回だけ被弾を無効化",apply:function(){G.p.shieldMax=Math.max(2,G.p.shieldMax-1);G.p.shield=1}},
+{id:"size",name:"大型弾",tag:"攻撃",desc:"弾丸サイズとダメージ +15%",apply:function(){G.p.bulletSize*=1.18;G.p.damage*=1.15}}
+];
+function resize(){
+DPR=Math.min(window.devicePixelRatio||1,2);
+W=window.innerWidth;H=window.innerHeight;
+canvas.width=Math.floor(W*DPR);canvas.height=Math.floor(H*DPR);
+canvas.style.width=W+"px";canvas.style.height=H+"px";
+ctx.setTransform(DPR,0,0,DPR,0,0);
+if(G.p){G.p.x=clamp(G.p.x,20,W-20);G.p.y=clamp(G.p.y,20,H-20)}
+}
+window.addEventListener("resize",resize);resize();
+function resetGame(){
+particles=[];bullets=[];enemyBullets=[];enemies=[];gems=[];texts=[];
+G={
+time:0,wave:1,kills:0,level:1,xp:0,nextXp:24,spawn:0,waveTimer:0,
+boss:null,bossAlive:false,score:0,
+p:{
+x:W/2,y:H*.68,r:13,hp:110+meta.metaHull*5,maxHp:110+meta.metaHull*5,
+speed:215,damage:14+meta.metaPower*1.5,fireRate:.31,fireCd:0,
+multishot:1,pierce:0,crit:.08,regen:0,magnet:110,drones:0,orbs:0,
+bulletSize:4,blast:0,vamp:0,slow:0,inv:0,
+dashCd:0,dashMax:4.6,dashTime:0,
+novaCd:0,novaMax:13,novaPower:90,
+shield:0,shieldTimer:0,shieldMax:8
+}
+};
+started=true;paused=false;choosing=false;gameOver=false;
+q("startOverlay").classList.remove("show");
+q("gameOverOverlay").classList.remove("show");
+toast("作戦開始");
+updateHUD();
+}
+function startGame(){
+meta.runs++;safeSave(meta);resetGame()
+}
+function toast(t){
+var e=q("toast");e.textContent=t;e.classList.add("show");
+clearTimeout(e._t);e._t=setTimeout(function(){e.classList.remove("show")},1100)
+}
+function addText(x,y,t,c){
+texts.push({x:x,y:y,text:t,color:c||"#fff",life:.7})
+}
+function burst(x,y,n,c){
+for(var i=0;i<n;i++){
+var a=rand(0,Math.PI*2),s=rand(35,170);
+particles.push({x:x,y:y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,life:rand(.25,.8),color:c||"#68e8ff",size:rand(1,4)})
+}
+}
+function nearestEnemy(x,y){
+if(!enemies.length)return null;
+var best=enemies[0],bd=1e9;
+for(var i=0;i<enemies.length;i++){
+if(enemies[i].dead)continue;
+var dx=enemies[i].x-x,dy=enemies[i].y-y,d=dx*dx+dy*dy;
+if(d<bd){bd=d;best=enemies[i]}
+}
+return best;
+}
+function fireFrom(x,y,damage,bonusAngle){
+var target=nearestEnemy(x,y);if(!target)return;
+var ang=Math.atan2(target.y-y,target.x-x)+(bonusAngle||0);
+bullets.push({x:x,y:y,vx:Math.cos(ang)*540,vy:Math.sin(ang)*540,r:G.p.bulletSize,damage:damage,pierce:G.p.pierce,life:1.8})
+}
+function playerFire(){
+var p=G.p;if(p.fireCd>0||!enemies.length)return;
+p.fireCd=p.fireRate;
+var spread=.12;
+for(var i=0;i<p.multishot;i++){
+fireFrom(p.x,p.y,p.damage,(i-(p.multishot-1)/2)*spread)
+}
+}
+function spawnEnemy(){
+var side=irand(0,3),x,y,m=34;
+if(side===0){x=rand(0,W);y=-m}
+else if(side===1){x=W+m;y=rand(0,H)}
+else if(side===2){x=rand(0,W);y=H+m}
+else{x=-m;y=rand(0,H)}
+var tier=Math.random(),elite=Math.random()<Math.min(.025+G.wave*.004,.18);
+var e={
+x:x,y:y,r:elite?18:12,hp:(24+G.wave*6)*(elite?3.7:1),maxHp:0,
+speed:rand(42,70)+G.wave*1.5,damage:8+G.wave*.65,elite:elite,
+shooter:false,shoot:rand(.7,1.7),slow:0,color:"#ff647f"
+};
+if(tier<.16){e.r=17;e.speed*=.62;e.hp*=2.3;e.color="#ff9b62"}
+else if(tier>.78){e.r=9;e.speed*=1.65;e.hp*=.65;e.color="#ff4f66"}
+else if(tier>.6){e.shooter=true;e.speed*=.78;e.hp*=1.25;e.color="#d96dff"}
+e.maxHp=e.hp;
+enemies.push(e)
+}
+function spawnBoss(){
+var names=["VOID SENTINEL","OMEGA ENGINE","BLACK SUN"];
+var b={
+x:W/2,y:-70,r:47,hp:520+G.wave*125,maxHp:520+G.wave*125,
+speed:34,damage:20+G.wave,elite:true,boss:true,shooter:true,shoot:.5,
+slow:0,color:"#b66cff",name:names[((G.wave/5)-1)%names.length|0],phase:0
+};
+enemies.push(b);G.boss=b;G.bossAlive=true;toast("BOSS INCOMING")
+}
+function killEnemy(e){
+if(e.dead)return;e.dead=true;G.kills++;meta.totalKills++;G.score+=e.boss?1000:e.elite?12
