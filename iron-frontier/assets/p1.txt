@@ -1,172 +1,132 @@
-。<br>
-・ボス撃破と死亡時にコアを獲得し、次回出撃時に基礎性能へ反映されます。<br>
-・iPhone Safari / Android Chrome / PCに対応。
-</div>
-</div>
-</div>
-</div>
-<div id="upgradeOverlay" class="overlay">
-<div class="panel">
-<h2 style="margin-top:0">強化を選択</h2>
-<div id="upgradeGrid" class="grid"></div>
-</div>
-</div>
-<div id="gameOverOverlay" class="overlay">
-<div class="panel">
-<div class="hero">
-<h2>作戦終了</h2>
-<p id="resultText"></p>
-<button id="retryBtn" class="primary">再出撃</button>
-<button id="titleBtn" class="secondary" style="margin-top:9px">タイトルへ戻る</button>
-</div>
-</div>
-</div>
-<script>
-(function(){
-"use strict";
-var canvas=document.getElementById("game"),ctx=canvas.getContext("2d");
-var W=0,H=0,DPR=1,last=0,raf=0;
-var started=false,paused=false,choosing=false,gameOver=false;
-var storageOK=true,memSave=null;
-var SAVE_KEY="neon_siege_v4";
-function q(id){return document.getElementById(id)}
+var pointers={},drag={active:false,id:null,x:0,y:0,moved:false};
+var safeMemory=null,storageOK=true;
+function $(id){return document.getElementById(id)}
 function clamp(v,a,b){return Math.max(a,Math.min(b,v))}
 function rand(a,b){return a+Math.random()*(b-a)}
 function irand(a,b){return Math.floor(rand(a,b+1))}
-function dist(a,b){var x=a.x-b.x,y=a.y-b.y;return Math.sqrt(x*x+y*y)}
 function choice(a){return a[Math.floor(Math.random()*a.length)]}
-function safeLoad(){
-try{
-var s=localStorage.getItem(SAVE_KEY);
-return s?JSON.parse(s):null;
-}catch(e){storageOK=false;return memSave}
-}
-function safeSave(v){
-memSave=v;
-try{localStorage.setItem(SAVE_KEY,JSON.stringify(v));storageOK=true}catch(e){storageOK=false}
-}
-var meta=safeLoad()||{bestWave:0,totalKills:0,cores:0,runs:0,metaPower:0,metaHull:0};
-meta.bestWave=meta.bestWave||0;meta.totalKills=meta.totalKills||0;meta.cores=meta.cores||0;meta.runs=meta.runs||0;
-meta.metaPower=Math.floor(meta.cores/10);
-meta.metaHull=Math.floor(meta.cores/15);
-var G={};
-var input={mx:0,my:0,moveX:0,moveY:0,keys:{},dash:false,nova:false};
-var particles=[],bullets=[],enemyBullets=[],enemies=[],gems=[],texts=[];
-var upgrades=[
-{id:"damage",name:"高出力弾",tag:"攻撃",desc:"弾丸ダメージ +30%",apply:function(){G.p.damage*=1.3}},
-{id:"rapid",name:"過給砲身",tag:"攻撃",desc:"連射速度 +22%",apply:function(){G.p.fireRate*=.78}},
-{id:"multi",name:"分岐砲門",tag:"攻撃",desc:"同時発射数 +1",apply:function(){G.p.multishot++}},
-{id:"pierce",name:"徹甲処理",tag:"攻撃",desc:"貫通数 +1",apply:function(){G.p.pierce++}},
-{id:"crit",name:"演算照準",tag:"攻撃",desc:"会心率 +10%",apply:function(){G.p.crit+=.1}},
-{id:"speed",name:"偏向スラスター",tag:"機動",desc:"移動速度 +14%",apply:function(){G.p.speed*=1.14}},
-{id:"hull",name:"複合装甲",tag:"防御",desc:"最大HP +28、同量回復",apply:function(){G.p.maxHp+=28;G.p.hp+=28}},
-{id:"regen",name:"自己修復",tag:"防御",desc:"毎秒HPを0.8回復",apply:function(){G.p.regen+=.8}},
-{id:"magnet",name:"回収磁場",tag:"補助",desc:"経験値の吸引範囲 +35%",apply:function(){G.p.magnet*=1.35}},
-{id:"drone",name:"攻撃ドローン",tag:"随伴",desc:"周回し自動射撃するドローン追加",apply:function(){G.p.drones++}},
-{id:"orb",name:"電磁オーブ",tag:"随伴",desc:"接触ダメージを与えるオーブ追加",apply:function(){G.p.orbs++}},
-{id:"nova",name:"炉心拡張",tag:"特殊",desc:"NOVAの再使用時間 -18%",apply:function(){G.p.novaMax*=.82}},
-{id:"dash",name:"位相加速",tag:"特殊",desc:"DASHの再使用時間 -18%",apply:function(){G.p.dashMax*=.82}},
-{id:"blast",name:"爆裂弾頭",tag:"特殊",desc:"撃破時に小爆発",apply:function(){G.p.blast+=1}},
-{id:"vamp",name:"回収ナノ群",tag:"回復",desc:"撃破時4%でHPを2回復",apply:function(){G.p.vamp+=.04}},
-{id:"slow",name:"低温弾薬",tag:"状態",desc:"命中時25%で敵を鈍化",apply:function(){G.p.slow+=.25}},
-{id:"shield",name:"反応障壁",tag:"防御",desc:"8秒ごとに1回だけ被弾を無効化",apply:function(){G.p.shieldMax=Math.max(2,G.p.shieldMax-1);G.p.shield=1}},
-{id:"size",name:"大型弾",tag:"攻撃",desc:"弾丸サイズとダメージ +15%",apply:function(){G.p.bulletSize*=1.18;G.p.damage*=1.15}}
+function deep(o){return JSON.parse(JSON.stringify(o))}
+function safeLoad(){try{var v=localStorage.getItem(SAVE_KEY);return v?JSON.parse(v):null}catch(e){storageOK=false;return safeMemory}}
+function safeSave(v){safeMemory=v;try{localStorage.setItem(SAVE_KEY,JSON.stringify(v));storageOK=true}catch(e){storageOK=false}}
+var META=safeLoad()||{bestWave:0,wins:0,totalTime:0,achievements:{},game:null};
+META.achievements=META.achievements||{};
+var G=null,buildings=[],nodes=[],enemies=[],shots=[],enemyShots=[],drones=[],effects=[];
+var nextId=1;
+
+var BUILD={
+ core:{name:"中枢",icon:"◉",cost:{},hp:1200,power:0,desc:"破壊されると作戦失敗。"},
+ solar:{name:"太陽炉",icon:"☀",cost:{credits:55,alloy:2},hp:180,powerGen:10,desc:"電力を10供給。"},
+ miner:{name:"採掘機",icon:"⛏",cost:{credits:65,alloy:3},hp:170,power:2,desc:"資源ノード上で鉱物を採掘。"},
+ smelter:{name:"精錬炉",icon:"♨",cost:{credits:90,iron:15},hp:220,power:5,desc:"鉄鉱石を合金へ加工。"},
+ turret:{name:"防衛砲塔",icon:"⌖",cost:{credits:95,alloy:10},hp:240,power:5,desc:"敵を自動射撃。"},
+ wall:{name:"装甲壁",icon:"▣",cost:{credits:20,alloy:4},hp:420,power:0,desc:"敵の進行を妨害。"},
+ lab:{name:"研究所",icon:"⌬",cost:{credits:125,alloy:12,crystal:6},hp:220,power:7,unlock:"science",desc:"合金と結晶から研究データを生成。"},
+ assembler:{name:"組立機",icon:"⬢",cost:{credits:180,alloy:20,crystal:10},hp:260,power:10,unlock:"assembly",desc:"次元部品を製造。"},
+ dronebay:{name:"ドローン港",icon:"◇",cost:{credits:150,alloy:16},hp:230,power:6,unlock:"logistics",desc:"全生産速度を向上。"},
+ laser:{name:"レーザー塔",icon:"✦",cost:{credits:220,alloy:28,crystal:12},hp:260,power:12,unlock:"laser",desc:"高速連続攻撃。"},
+ reactor:{name:"結晶炉",icon:"◈",cost:{credits:260,alloy:25,crystal:18},hp:300,powerGen:36,unlock:"reactor",desc:"大電力を供給。"},
+ shield:{name:"防衛シールド",icon:"◌",cost:{credits:260,alloy:30,crystal:20},hp:300,power:16,unlock:"shield",desc:"周囲の建物が受けるダメージを軽減。"},
+ beacon:{name:"次元ビーコン",icon:"△",cost:{credits:500,alloy:70,parts:12,science:35},hp:700,power:30,unlock:"beacon",desc:"部品と研究を消費して脱出ゲートを起動。"}
+};
+var BUILD_ORDER=["solar","miner","smelter","turret","wall","lab","assembler","dronebay","laser","reactor","shield","beacon"];
+var RESEARCH={
+ mining:{name:"深層採掘",cost:25,desc:"採掘速度 +35%",pre:[]},
+ grid:{name:"高効率送電",cost:30,desc:"発電量 +25%",pre:[]},
+ science:{name:"応用研究",cost:20,desc:"研究所を解放",pre:[]},
+ ballistics:{name:"弾道演算",cost:40,desc:"砲塔ダメージ +35%",pre:["science"]},
+ logistics:{name:"物流自律化",cost:45,desc:"ドローン港を解放",pre:["science"]},
+ assembly:{name:"精密組立",cost:55,desc:"組立機を解放",pre:["science"]},
+ laser:{name:"指向性兵器",cost:70,desc:"レーザー塔を解放",pre:["ballistics"]},
+ reactor:{name:"結晶反応炉",cost:65,desc:"結晶炉を解放",pre:["grid"]},
+ shield:{name:"位相防壁",cost:85,desc:"防衛シールドを解放",pre:["grid","ballistics"]},
+ efficiency:{name:"無人工場",cost:90,desc:"全生産速度 +30%",pre:["logistics","assembly"]},
+ weapons2:{name:"終端火力",cost:110,desc:"全砲塔射程と火力 +25%",pre:["laser"]},
+ beacon:{name:"次元工学",cost:140,desc:"次元ビーコンを解放",pre:["assembly","reactor","shield"]}
+};
+var TUTORIAL=[
+ {text:"太陽炉を1基建設する",check:function(){return countType("solar")>=1},reward:{credits:60}},
+ {text:"鉄ノード上に採掘機を建設する",check:function(){return buildings.some(function(b){return b.type==="miner"&&b.nodeType==="iron"})},reward:{alloy:6}},
+ {text:"鉄鉱石を20備蓄する",check:function(){return G.res.iron>=20},reward:{credits:80}},
+ {text:"精錬炉を建設する",check:function(){return countType("smelter")>=1},reward:{crystal:6}},
+ {text:"防衛砲塔を建設する",check:function(){return countType("turret")>=1},reward:{alloy:8}},
+ {text:"第1ウェーブを生き残る",check:function(){return G.wave>=2},reward:{science:12}},
+ {text:"研究所を建設し研究データを10作る",check:function(){return countType("lab")>=1&&G.res.science>=10},reward:{credits:150}},
+ {text:"次元工学を研究し、ビーコンを建設する",check:function(){return G.research.beacon&&countType("beacon")>=1},reward:{parts:5}},
+ {text:"ビーコンを100%まで充填する",check:function(){return G.beaconCharge>=100},reward:{credits:1000}}
 ];
-function resize(){
-DPR=Math.min(window.devicePixelRatio||1,2);
-W=window.innerWidth;H=window.innerHeight;
-canvas.width=Math.floor(W*DPR);canvas.height=Math.floor(H*DPR);
-canvas.style.width=W+"px";canvas.style.height=H+"px";
-ctx.setTransform(DPR,0,0,DPR,0,0);
-if(G.p){G.p.x=clamp(G.p.x,20,W-20);G.p.y=clamp(G.p.y,20,H-20)}
+
+function newGame(){
+  nextId=1;buildings=[];nodes=[];enemies=[];shots=[];enemyShots=[];drones=[];effects=[];won=false;
+  G={seed:Date.now(),time:0,wave:0,waveActive:false,waveQueue:0,waveSpawn:0,waveCooldown:30,
+    res:{credits:420,iron:0,crystal:8,alloy:18,parts:0,science:0},
+    research:{},tutorial:0,beaconCharge:0,powerGen:0,powerUse:0,efficiency:1,enemyCount:0,
+    stats:{kills:0,builds:0,waves:0},gameOver:false};
+  generateNodes();
+  var c=Math.floor(MAP/2);createBuilding("core",c,c,true);
+  createBuilding("solar",c-2,c,true);createBuilding("turret",c+2,c,true);
+  cam.x=c*TILE+TILE/2;cam.y=c*TILE+TILE/2;cam.zoom=clamp(Math.min(W,H)/760,.72,1.12);
+  selectedBuild=null;selectedBuilding=null;started=true;paused=false;
+  $("title").classList.remove("show");renderBuildBar();updateUI();toast("着陸完了：工場を建設してください");saveGame();
 }
-window.addEventListener("resize",resize);resize();
-function resetGame(){
-particles=[];bullets=[];enemyBullets=[];enemies=[];gems=[];texts=[];
-G={
-time:0,wave:1,kills:0,level:1,xp:0,nextXp:24,spawn:0,waveTimer:0,
-boss:null,bossAlive:false,score:0,
-p:{
-x:W/2,y:H*.68,r:13,hp:110+meta.metaHull*5,maxHp:110+meta.metaHull*5,
-speed:215,damage:14+meta.metaPower*1.5,fireRate:.31,fireCd:0,
-multishot:1,pierce:0,crit:.08,regen:0,magnet:110,drones:0,orbs:0,
-bulletSize:4,blast:0,vamp:0,slow:0,inv:0,
-dashCd:0,dashMax:4.6,dashTime:0,
-novaCd:0,novaMax:13,novaPower:90,
-shield:0,shieldTimer:0,shieldMax:8
+function serialize(){return {G:G,buildings:buildings,nodes:nodes,nextId:nextId,cam:cam,won:won}}
+function saveGame(){if(!G)return;META.game=serialize();META.bestWave=Math.max(META.bestWave,G.wave);safeSave(META);toastSilent(storageOK?"保存済み":"一時保存")}
+function loadGame(){
+  if(!META.game)return newGame();
+  var s=META.game;G=s.G;buildings=s.buildings||[];nodes=s.nodes||[];nextId=s.nextId||1;cam=s.cam||cam;won=!!s.won;
+  enemies=[];shots=[];enemyShots=[];drones=[];effects=[];selectedBuild=null;selectedBuilding=null;started=true;paused=false;
+  $("title").classList.remove("show");renderBuildBar();updateUI();toast("作戦を再開")
 }
-};
-started=true;paused=false;choosing=false;gameOver=false;
-q("startOverlay").classList.remove("show");
-q("gameOverOverlay").classList.remove("show");
-toast("作戦開始");
-updateHUD();
+function generateNodes(){
+  var c=Math.floor(MAP/2),spots=[
+    [c-4,c-2,"iron"],[c+4,c-1,"iron"],[c-2,c+4,"crystal"],[c+5,c+4,"crystal"],
+    [c-7,c+2,"iron"],[c+1,c-7,"iron"],[c+7,c-5,"crystal"],[c-6,c-6,"crystal"]
+  ];
+  for(var i=0;i<spots.length;i++)nodes.push({x:spots[i][0],y:spots[i][1],type:spots[i][2],rich:rand(.8,1.35)});
+  for(var n=0;n<18;n++){
+    var x=irand(2,MAP-3),y=irand(2,MAP-3);if(Math.abs(x-c)<5&&Math.abs(y-c)<5){n--;continue}
+    nodes.push({x:x,y:y,type:Math.random()<.7?"iron":"crystal",rich:rand(.7,1.5)})
+  }
 }
-function startGame(){
-meta.runs++;safeSave(meta);resetGame()
+function nodeAt(x,y){for(var i=0;i<nodes.length;i++)if(nodes[i].x===x&&nodes[i].y===y)return nodes[i];return null}
+function buildingAt(x,y){for(var i=0;i<buildings.length;i++)if(buildings[i].x===x&&buildings[i].y===y&&buildings[i].hp>0)return buildings[i];return null}
+function countType(t){var n=0;for(var i=0;i<buildings.length;i++)if(buildings[i].type===t&&buildings[i].hp>0)n++;return n}
+function createBuilding(type,x,y,free){
+  var d=BUILD[type],n=nodeAt(x,y);
+  var b={id:nextId++,type:type,x:x,y:y,hp:d.hp,maxHp:d.hp,level:1,timer:rand(0,1),cooldown:0,angle:0,nodeType:type==="miner"&&n?n.type:null,flash:0};
+  buildings.push(b);if(!free){pay(d.cost);G.stats.builds++}return b
 }
-function toast(t){
-var e=q("toast");e.textContent=t;e.classList.add("show");
-clearTimeout(e._t);e._t=setTimeout(function(){e.classList.remove("show")},1100)
+function canAfford(cost){for(var k in cost)if((G.res[k]||0)<cost[k])return false;return true}
+function pay(cost){for(var k in cost)G.res[k]-=cost[k]}
+function refund(cost,factor){for(var k in cost)G.res[k]=(G.res[k]||0)+Math.floor(cost[k]*factor)}
+function costText(c){var p=[];if(c.credits)p.push("💳"+c.credits);if(c.iron)p.push("⛓"+c.iron);if(c.crystal)p.push("◆"+c.crystal);if(c.alloy)p.push("▰"+c.alloy);if(c.parts)p.push("⬢"+c.parts);if(c.science)p.push("⌬"+c.science);return p.join(" ")||"無料"}
+function unlocked(t){var u=BUILD[t].unlock;return !u||!!(G&&G.research&&G.research[u])}
+function place(type,x,y){
+  if(x<1||y<1||x>=MAP-1||y>=MAP-1)return toast("範囲外です");
+  if(buildingAt(x,y))return toast("既に建物があります");
+  var n=nodeAt(x,y);if(type==="miner"&&!n)return toast("採掘機は資源ノード上に設置します");
+  if(type!=="miner"&&n)return toast("資源ノード上には採掘機のみ設置可能です");
+  var d=BUILD[type];if(!unlocked(type))return toast("研究が必要です");if(!canAfford(d.cost))return toast("資源が足りません");
+  var b=createBuilding(type,x,y,false);selectedBuilding=b;selectedBuild=null;renderBuildBar();showDetail(b);toast(d.name+"を建設");checkTutorial();saveGame()
 }
-function addText(x,y,t,c){
-texts.push({x:x,y:y,text:t,color:c||"#fff",life:.7})
+function updatePower(){
+  var gen=0,use=0;
+  for(var i=0;i<buildings.length;i++){var b=buildings[i],d=BUILD[b.type];if(b.hp<=0)continue;if(d.powerGen)gen+=d.powerGen*(1+(b.level-1)*.35);if(d.power)use+=d.power*(1+(b.level-1)*.12)}
+  if(G.research.grid)gen*=1.25;G.powerGen=gen;G.powerUse=use;G.efficiency=use<=0?1:Math.min(1,gen/use);
+  if(G.research.efficiency)G.efficiency=Math.min(1.3,G.efficiency*1.3);
+  G.efficiency*=1+countType("dronebay")*.08
 }
-function burst(x,y,n,c){
-for(var i=0;i<n;i++){
-var a=rand(0,Math.PI*2),s=rand(35,170);
-particles.push({x:x,y:y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,life:rand(.25,.8),color:c||"#68e8ff",size:rand(1,4)})
+function produce(dt){
+  updatePower();var e=G.efficiency;
+  for(var i=0;i<buildings.length;i++){
+    var b=buildings[i],d=BUILD[b.type];if(b.hp<=0)continue;b.flash=Math.max(0,b.flash-dt);b.timer+=dt*e*(1+(b.level-1)*.28);
+    if(b.type==="miner"&&b.timer>=2.5){b.timer=0;var amt=(G.research.mining?2:1)*(b.nodeType==="crystal"?1:2);G.res[b.nodeType]+=amt;spawnDrone(b,b.nodeType,amt);b.flash=.25}
+    if(b.type==="smelter"&&b.timer>=3){if(G.res.iron>=3){b.timer=0;G.res.iron-=3;G.res.alloy+=1;spawnDrone(b,"alloy",1);b.flash=.25}}
+    if(b.type==="lab"&&b.timer>=5){if(G.res.alloy>=1&&G.res.crystal>=1){b.timer=0;G.res.alloy--;G.res.crystal--;G.res.science+=2;spawnDrone(b,"science",2);b.flash=.25}}
+    if(b.type==="assembler"&&b.timer>=8){if(G.res.alloy>=5&&G.res.crystal>=2){b.timer=0;G.res.alloy-=5;G.res.crystal-=2;G.res.parts++;spawnDrone(b,"parts",1);b.flash=.25}}
+    if(b.type==="beacon"&&b.timer>=1){b.timer=0;if(G.res.parts>=1&&G.res.science>=2&&G.beaconCharge<100){G.res.parts--;G.res.science-=2;G.beaconCharge=Math.min(100,G.beaconCharge+1.5*(1+(b.level-1)*.25));b.flash=.35;if(G.beaconCharge>=100)victory()}}
+  }
 }
+function spawnDrone(b,type,amount){
+  var core=buildings[0];if(!core)return;drones.push({x:b.x*TILE+TILE/2,y:b.y*TILE+TILE/2,tx:core.x*TILE+TILE/2,ty:core.y*TILE+TILE/2,life:1.2,type:type,amount:amount})
 }
-function nearestEnemy(x,y){
-if(!enemies.length)return null;
-var best=enemies[0],bd=1e9;
-for(var i=0;i<enemies.length;i++){
-if(enemies[i].dead)continue;
-var dx=enemies[i].x-x,dy=enemies[i].y-y,d=dx*dx+dy*dy;
-if(d<bd){bd=d;best=enemies[i]}
-}
-return best;
-}
-function fireFrom(x,y,damage,bonusAngle){
-var target=nearestEnemy(x,y);if(!target)return;
-var ang=Math.atan2(target.y-y,target.x-x)+(bonusAngle||0);
-bullets.push({x:x,y:y,vx:Math.cos(ang)*540,vy:Math.sin(ang)*540,r:G.p.bulletSize,damage:damage,pierce:G.p.pierce,life:1.8})
-}
-function playerFire(){
-var p=G.p;if(p.fireCd>0||!enemies.length)return;
-p.fireCd=p.fireRate;
-var spread=.12;
-for(var i=0;i<p.multishot;i++){
-fireFrom(p.x,p.y,p.damage,(i-(p.multishot-1)/2)*spread)
-}
-}
-function spawnEnemy(){
-var side=irand(0,3),x,y,m=34;
-if(side===0){x=rand(0,W);y=-m}
-else if(side===1){x=W+m;y=rand(0,H)}
-else if(side===2){x=rand(0,W);y=H+m}
-else{x=-m;y=rand(0,H)}
-var tier=Math.random(),elite=Math.random()<Math.min(.025+G.wave*.004,.18);
-var e={
-x:x,y:y,r:elite?18:12,hp:(24+G.wave*6)*(elite?3.7:1),maxHp:0,
-speed:rand(42,70)+G.wave*1.5,damage:8+G.wave*.65,elite:elite,
-shooter:false,shoot:rand(.7,1.7),slow:0,color:"#ff647f"
-};
-if(tier<.16){e.r=17;e.speed*=.62;e.hp*=2.3;e.color="#ff9b62"}
-else if(tier>.78){e.r=9;e.speed*=1.65;e.hp*=.65;e.color="#ff4f66"}
-else if(tier>.6){e.shooter=true;e.speed*=.78;e.hp*=1.25;e.color="#d96dff"}
-e.maxHp=e.hp;
-enemies.push(e)
-}
-function spawnBoss(){
-var names=["VOID SENTINEL","OMEGA ENGINE","BLACK SUN"];
-var b={
-x:W/2,y:-70,r:47,hp:520+G.wave*125,maxHp:520+G.wave*125,
-speed:34,damage:20+G.wave,elite:true,boss:true,shooter:true,shoot:.5,
-slow:0,color:"#b66cff",name:names[((G.wave/5)-1)%names.length|0],phase:0
-};
-enemies.push(b);G.boss=b;G.bossAlive=true;toast("BOSS INCOMING")
-}
-function killEnemy(e){
-if(e.dead)return;e.dead=true;G.kills++;meta.totalKills++;G.score+=e.boss?1000:e.elite?12
+function updateDrones(dt){for(var i=0;i<drones.length;i++){var d=drones[i],a=
